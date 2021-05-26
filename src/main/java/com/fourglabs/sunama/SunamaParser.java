@@ -9,6 +9,14 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.security.cert.X509Certificate;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 import com.fourglabs.sunama.utils.Constants;
 import com.fourglabs.sunama.utils.SunamaUtils;
@@ -103,11 +111,32 @@ public class SunamaParser implements Constants {
 	}
 
 	private static void triggerAPI(String input, String phone) {
-		HttpURLConnection conn = null;
+		HttpsURLConnection conn = null;
 		try {
+			/* Start of Fix */
+	        TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
+	            public java.security.cert.X509Certificate[] getAcceptedIssuers() { return null; }
+	            public void checkClientTrusted(X509Certificate[] certs, String authType) { }
+	            public void checkServerTrusted(X509Certificate[] certs, String authType) { }
 
+	        } };
+
+	        SSLContext sc = SSLContext.getInstance("SSL");
+	        sc.init(null, trustAllCerts, new java.security.SecureRandom());
+	        HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+
+	        // Create all-trusting host name verifier
+	        HostnameVerifier allHostsValid = new HostnameVerifier() {
+	            public boolean verify(String hostname, SSLSession session) { return true; }
+	        };
+	        // Install the all-trusting host verifier
+	        HttpsURLConnection.setDefaultHostnameVerifier(allHostsValid);
+	        
 			URL url = new URL("https://sunama-jakini.firebaseio.com/profiles/0/" + phone + ".json");
-			conn = (HttpURLConnection) url.openConnection();
+			conn = (HttpsURLConnection) url.openConnection();
+			
+
+				  
 			conn.setDoOutput(true);
 			conn.setRequestMethod("PUT");
 			conn.setRequestProperty("Content-Type", "application/json");
@@ -120,7 +149,7 @@ public class SunamaParser implements Constants {
 
 			BufferedReader br = new BufferedReader(new InputStreamReader((conn.getInputStream())));
 
-			String output;
+			String output=null;
 			// System.out.println("Output from Server .... \n");
 			while ((output = br.readLine()) != null) {
 				// System.out.println(output);
